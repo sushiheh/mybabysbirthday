@@ -1,0 +1,727 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Consent</title>
+  <link href="https://fonts.googleapis.com/css2?family=Allura&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      font-family: system-ui, sans-serif;
+      background: #F5F5DC;
+    }
+
+    /* ===== FLOATING HEARTS BACKGROUND ===== */
+    .floating-hearts {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;          /* behind everything */
+      overflow: hidden;
+    }
+
+    .heart {
+      position: absolute;
+      left: var(--x);
+      bottom: -50px;
+      font-size: var(--size);
+      opacity: var(--opacity);
+      transform: translateX(-50%);
+      animation: floatUp var(--dur) linear var(--delay) infinite;
+      will-change: transform;
+      filter: blur(0.15px);
+    }
+
+    @keyframes floatUp {
+      0% {
+        transform: translateX(-50%) translateY(0) rotate(0deg);
+      }
+      100% {
+        transform: translateX(calc(-50% + var(--drift)))
+                   translateY(calc(-1 * (100vh + 140px)))
+                   rotate(var(--rot));
+      }
+    }
+
+    /* ===== PAGE TRANSITION WRAPPER ===== */
+    #app {
+      width: 100%;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      opacity: 1;
+      transform: translateY(0);
+      transition: opacity 420ms ease, transform 420ms ease;
+
+      position: relative; /* so z-index works */
+      z-index: 1;         /* above hearts */
+    }
+    #app.fading-out {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+
+    /* ---------- FIRST PAGE ---------- */
+    .wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .top-text {
+      font-size: 28px;
+      font-weight: 700;
+      color: #333;
+      text-align: center;
+    }
+
+    .card {
+      width: min(400px, 100%);
+      background: #fff;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,.1);
+      text-align: center;
+    }
+
+    .image img {
+      width: 100%;
+      height: 280px;
+      object-fit: cover;
+      display: block;
+    }
+
+    .content { padding: 20px; }
+
+    .button-row {
+      display: flex;
+      justify-content: center;
+      height: 60px;
+    }
+
+    button {
+      border: none;
+      border-radius: 12px;
+      padding: 12px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .accept {
+      background: #ff00e6;
+      color: #fff;
+      transform: translateX(-50px);
+    }
+
+    .decline {
+      position: fixed;
+      background: #eef2ff;
+      color: #1f2a44;
+      border: 1px solid rgba(37,99,235,.25);
+      transition: left 220ms ease, top 220ms ease;
+      z-index: 9999;
+    }
+
+    /* ---------- SECOND PAGE ---------- */
+    .page2 {
+      min-height: 100vh;
+      width: 100%;
+      display: grid;
+      place-items: center;
+      background: #F5F5DC;
+      padding: 24px 0;
+      box-sizing: border-box;
+    }
+
+    .page2-wrap {
+      width: min(1100px, 90%);
+      display: grid;
+      gap: 18px;
+      justify-items: center;
+    }
+
+    .options {
+      width: 100%;
+      display: flex;
+      gap: 24px;
+      align-items: stretch;
+      justify-content: center;
+    }
+
+    .option-card {
+      flex: 1;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.1);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      text-align: center;
+    }
+
+    .option-card img {
+      width: 100%;
+      height: 180px;
+      object-fit: cover;
+      border-radius: 12px;
+      display: block;
+    }
+
+    .option-text {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1f2a44;
+    }
+
+    .option-btn {
+      margin-top: auto;
+      background: #2563eb;
+      color: #fff;
+    }
+
+    /* FINAL BUTTON (smooth reveal) */
+    .final-btn {
+      background: #16a34a;
+      color: #fff;
+      padding: 14px 22px;
+      border-radius: 14px;
+      font-size: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.1);
+
+      opacity: 0;
+      transform: translateY(12px);
+      pointer-events: none;
+      transition: opacity 300ms ease, transform 300ms ease;
+    }
+    .final-btn.show {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    /* ---------- OVERLAYS (SMOOTH) ---------- */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.45);
+      display: grid;
+      place-items: center;
+      padding: 16px;
+      z-index: 10000;
+
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 220ms ease, visibility 220ms ease;
+    }
+    .overlay.show {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.25);
+      padding: 18px;
+      width: min(760px, 100%);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+
+      transform: translateY(10px) scale(0.98);
+      opacity: 0;
+      transition: transform 220ms ease, opacity 220ms ease;
+    }
+    .overlay.show .modal {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .modal-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: #1f2a44;
+      margin: 0;
+    }
+    .back-btn {
+      background: #111827;
+      color: #fff;
+      padding: 8px 14px;
+      border-radius: 10px;
+      font-size: 14px;
+    }
+
+    .letter-body {
+      white-space: pre-wrap;
+      line-height: 1.6;
+      color: #1f2a44;
+      font-size: 15px;
+      margin: 0;
+    }
+
+    .collage-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    .collage-cell {
+      aspect-ratio: 1 / 1;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #e9ecf5;
+      display: grid;
+      place-items: center;
+    }
+    .collage-cell img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .collage-center-text {
+      padding: 10px;
+      text-align: center;
+      font-weight: 800;
+      color: #1f2a44;
+      background: #fff;
+      border: 2px dashed rgba(31,42,68,.25);
+    }
+
+    /* ---------- THIRD PAGE ---------- */
+.page3 {
+  min-height: 100vh;
+  width: 100%;
+  display: grid;
+  place-items: center;
+  background: #F5F5DC;
+  padding: 24px;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.page3-inner {
+  display: grid;
+  gap: 18px;
+  place-items: center;
+}
+
+.page3-card {
+  width: min(700px, 95vw); /* MUCH bigger */
+  background: #fff;
+  border-radius: 22px;
+  overflow: hidden;
+  box-shadow: 0 18px 45px rgba(0,0,0,.18);
+  text-align: center;
+}
+
+.page3-card img {
+  width: 100%;
+  height: 420px; /* taller image */
+  object-fit: cover;
+  display: block;
+}
+
+.page3-card .content {
+  padding: 18px 22px 22px;
+}
+
+.page3-subtext {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 650;
+  color: #475569;
+}
+
+
+    .page3 {
+      min-height: 100vh;
+      width: 100%;
+      display: grid;
+      place-items: center;
+      background: #F5F5DC;
+      padding: 24px;
+      box-sizing: border-box;
+      text-align: center;
+    }
+    .page3 h1 {
+      margin: 0 0 10px;
+      font-size: 44px;
+      line-height: 1.05;
+      color: #111827;
+    }
+    .page3 p {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 650;
+      color: #334155;
+    }
+
+    /* ---------- CONFETTI CANVAS ---------- */
+    #confetti {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 20000;
+    }
+
+    @media (max-width: 900px) {
+      .options { flex-direction: column; }
+      .accept { transform: translateX(0); }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- FLOATING HEARTS LAYER (background) -->
+  <div class="floating-hearts" id="heartsLayer" aria-hidden="true"></div>
+
+  <div id="app">
+    <!-- FIRST PAGE -->
+    <div class="wrapper">
+      <div class="top-text" id="topText">Will you accept?</div>
+
+      <main class="card">
+        <div class="image">
+          <img id="topImage" src="cat3.jpg" alt="">
+        </div>
+        <div class="content">
+          <div class="button-row">
+            <button class="accept" id="acceptBtn">Yuh uh</button>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <button class="decline" id="declineBtn">Nuh uh</button>
+  </div>
+
+  <script>
+    const app = document.getElementById("app");
+
+    /* ===== FLOATING HEARTS (random, low opacity) ===== */
+    function initFloatingHearts(count = 26) {
+      const layer = document.getElementById("heartsLayer");
+      if (!layer) return;
+
+      const hearts = ["💗","💖","💘","💞","💕","❤️"];
+      layer.innerHTML = "";
+
+      for (let i = 0; i < count; i++) {
+        const el = document.createElement("div");
+        el.className = "heart";
+        el.textContent = hearts[(Math.random() * hearts.length) | 0];
+
+        const x = Math.random() * 100;                 // vw
+        const size = 14 + Math.random() * 22;          // px
+        const opacity = 0.07 + Math.random() * 0.14;   // low
+        const dur = 10 + Math.random() * 18;           // seconds
+        const delay = -Math.random() * dur;            // already floating
+        const drift = (Math.random() - 0.5) * 140;     // px
+        const rot = (Math.random() - 0.5) * 50;        // deg
+
+        el.style.setProperty("--x", x + "vw");
+        el.style.setProperty("--size", size + "px");
+        el.style.setProperty("--opacity", opacity);
+        el.style.setProperty("--dur", dur + "s");
+        el.style.setProperty("--delay", delay + "s");
+        el.style.setProperty("--drift", drift + "px");
+        el.style.setProperty("--rot", rot + "deg");
+
+        layer.appendChild(el);
+      }
+    }
+    initFloatingHearts(28);
+
+    function transitionTo(nextHTML, afterSwap) {
+      app.classList.add("fading-out");
+      const duration = 420;
+
+      setTimeout(() => {
+        app.innerHTML = nextHTML;
+        app.classList.remove("fading-out");
+        // small nudge to ensure transition applies after DOM swap
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          if (typeof afterSwap === "function") afterSwap();
+        }));
+      }, duration);
+    }
+
+    function startConfetti(durationMs = 2200) {
+      const canvas = document.createElement("canvas");
+      canvas.id = "confetti";
+      document.body.appendChild(canvas);
+      const ctx = canvas.getContext("2d");
+
+      function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      }
+      resize();
+      window.addEventListener("resize", resize, { passive: true });
+
+      const colors = ["#ff00e6", "#2563eb", "#16a34a", "#f59e0b", "#ef4444", "#8b5cf6"];
+      const particles = [];
+      const count = 220;
+
+      for (let i = 0; i < count; i++) {
+        particles.push({
+          x: Math.random() * canvas.width,
+          y: -Math.random() * canvas.height,
+          vx: (Math.random() - 0.5) * 2.2,
+          vy: 2 + Math.random() * 4.2,
+          size: 5 + Math.random() * 6,
+          rot: Math.random() * Math.PI,
+          vr: (Math.random() - 0.5) * 0.2,
+          color: colors[(Math.random() * colors.length) | 0],
+          shape: Math.random() < 0.5 ? "rect" : "circle",
+        });
+      }
+
+      const start = performance.now();
+
+      function draw(now) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        for (const p of particles) {
+          p.x += p.vx;
+          p.y += p.vy;
+          p.rot += p.vr;
+
+          if (p.y > canvas.height + 20) {
+            p.y = -20;
+            p.x = Math.random() * canvas.width;
+          }
+          if (p.x < -30) p.x = canvas.width + 30;
+          if (p.x > canvas.width + 30) p.x = -30;
+
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate(p.rot);
+          ctx.fillStyle = p.color;
+
+          if (p.shape === "rect") {
+            ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.7);
+          } else {
+            ctx.beginPath();
+            ctx.arc(0, 0, p.size * 0.4, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+        }
+
+        if (now - start < durationMs) {
+          requestAnimationFrame(draw);
+        } else {
+          canvas.remove();
+          window.removeEventListener("resize", resize);
+        }
+      }
+
+      requestAnimationFrame(draw);
+    }
+
+    function initFirstPage() {
+      const decline = document.getElementById("declineBtn");
+      const accept = document.getElementById("acceptBtn");
+      const image = document.getElementById("topImage");
+      const topText = document.getElementById("topText");
+
+      const declineImages = ["cat6.jpg","cat4.jpg","cat5.jpg"];
+      const declineTexts = ["Nooooo 😭","wWhyyyyy😭😭","Please😭😭🙏🙏"];
+      let i = 0, t = 0;
+
+      window.addEventListener("load", () => {
+        const r = accept.getBoundingClientRect();
+        decline.style.left = r.right + 20 + "px";
+        decline.style.top = r.top + "px";
+      }, { once: true });
+
+      decline.onclick = () => {
+        decline.style.left = Math.random() * (innerWidth - 120) + "px";
+        decline.style.top = Math.random() * (innerHeight - 60) + "px";
+        i = (i + 1) % declineImages.length;
+        t = (t + 1) % declineTexts.length;
+        image.src = declineImages[i];
+        topText.textContent = declineTexts[t];
+      };
+
+      accept.onclick = () => {
+        transitionTo(getPage2HTML(), initPage2);
+      };
+    }
+
+    function getPage2HTML() {
+      return `
+        <div class="page2">
+          <div class="page2-wrap">
+            <div class="options">
+              <div class="option-card">
+                <img src="catletter.jpg" alt="">
+                <div class="option-text">Letter</div>
+                <button class="option-btn" id="openLetter">Open</button>
+              </div>
+
+              <div class="option-card">
+                <img src="cattogether.jpg" alt="">
+                <div class="option-text">Us <3</div>
+                <button class="option-btn" id="openCollage">Open</button>
+              </div>
+
+              <div class="option-card">
+                <img src="catsong.jpg" alt="">
+                <div class="option-text">Song that reminds me of you</div>
+                <button class="option-btn" id="openSong">Open</button>
+              </div>
+            </div>
+
+            <button class="final-btn" id="finalBtn">Next 🎂</button>
+          </div>
+        </div>
+
+        <!-- LETTER OVERLAY -->
+        <div class="overlay" id="letterOverlay" aria-hidden="true">
+          <div class="modal" role="dialog" aria-modal="true">
+            <div class="modal-header">
+              <h2 class="modal-title">A Letter 💌</h2>
+              <button class="back-btn" id="closeLetter">Back</button>
+            </div>
+            <p class="letter-body">
+Happy birthday my dearest, Azzaya
+My muse, my treasure, my whole world and reason to live. I know it is late reply to your letters even though it is not real letter. I was afraid of not making it good enough as I don't believe that I am romantic and creative as you. I should have written you a letter lot sooner, I am sorry my sweetheart. But I will try from now on. Its been already 9 months since we met. It is hard to say it was actual meeting though you made me so nervous. You were breathtakingly gorgeous in real life. Sometimes I wish I should have just called you out on that day but I think it is just destiny doing its job. It is as if we were destined to meet. and I am glad that universe let us met. and its been over 3 months since we started dating. We started learning about each other and even though we were so similar at the first. I realized that we were fundamentally same but personally we were different. That doesn't mean that we didn't understand each other. You always made an effort to communicate your feelings and reassure each other which is one of the reasons I love you so much. I made an lot of mistakes and even hurt you in some instances which also I still feel guilty about. You are my one and only love in this world, you are so dearest to me. Thank you for loving me even though I was not perfect. And ofc I showed you lot of my weaknesses but nonetheless my sweet girl embraced all of them without hint of repulsion. Thank you for loving me even when I was in the weakest. We perhaps will again learn each other more and I hope they will be all more reason to deepen our love. I am glad that you are born in this world, I firmly believe that we were born in this world to just to find each other. and I am sure we are together in every universes
+Happy 22nd birthday my gentle sweetheart I love you so much and I miss you dearly also eagerly waiting for you to come back to me 
+Sincerely from your obedient servant and boyfriend D. Margad-Erdene ❤️
+            </p>
+          </div>
+        </div>
+
+        <!-- COLLAGE OVERLAY -->
+        <div class="overlay" id="collageOverlay" aria-hidden="true">
+          <div class="modal" role="dialog" aria-modal="true">
+            <div class="modal-header">
+              <h2 class="modal-title"></h2>
+              <button class="back-btn" id="closeCollage">Back</button>
+            </div>
+
+            <div class="collage-grid">
+              <div class="collage-cell"><img src="c1.jpg" alt=""></div>
+              <div class="collage-cell"><img src="c2.jpg" alt=""></div>
+              <div class="collage-cell"><img src="c3.jpg" alt=""></div>
+
+              <div class="collage-cell"><img src="c4.jpg" alt=""></div>
+              <div class="collage-cell collage-center-text">オレのすべて💞🥰💞</div>
+              <div class="collage-cell"><img src="c5.jpg" alt=""></div>
+
+              <div class="collage-cell"><img src="c6.jpg" alt=""></div>
+              <div class="collage-cell"><img src="c7.jpg" alt=""></div>
+              <div class="collage-cell"><img src="c8.jpg" alt=""></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SONG OVERLAY -->
+        <div class="overlay" id="songOverlay" aria-hidden="true">
+          <div class="modal" role="dialog" aria-modal="true">
+            <div class="modal-header">
+              <h2 class="modal-title">Our Song 🎧</h2>
+              <button class="back-btn" id="closeSong">Back</button>
+            </div>
+
+            <iframe
+              style="border-radius:12px"
+              src="https://open.spotify.com/embed/track/4E0P1xs3JNmsNr5c5nFTZJ"
+              width="100%"
+              height="152"
+              frameborder="0"
+              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+              loading="lazy">
+            </iframe>
+          </div>
+        </div>
+      `;
+    }
+
+    function initPage2() {
+      const visited = { letter: false, collage: false, song: false };
+      const finalBtn = document.getElementById("finalBtn");
+
+      function updateFinalBtn() {
+        const allDone = visited.letter && visited.collage && visited.song;
+        finalBtn.classList.toggle("show", allDone);
+      }
+
+      const letterOverlay = document.getElementById("letterOverlay");
+      const collageOverlay = document.getElementById("collageOverlay");
+      const songOverlay = document.getElementById("songOverlay");
+
+      function openOverlay(overlay, key) {
+        overlay.classList.add("show");
+        overlay.setAttribute("aria-hidden", "false");
+        visited[key] = true;
+        updateFinalBtn();
+      }
+      function closeOverlay(overlay) {
+        overlay.classList.remove("show");
+        overlay.setAttribute("aria-hidden", "true");
+      }
+
+      document.getElementById("openLetter").onclick = () => openOverlay(letterOverlay, "letter");
+      document.getElementById("openCollage").onclick = () => openOverlay(collageOverlay, "collage");
+      document.getElementById("openSong").onclick = () => openOverlay(songOverlay, "song");
+
+      document.getElementById("closeLetter").onclick = () => closeOverlay(letterOverlay);
+      document.getElementById("closeCollage").onclick = () => closeOverlay(collageOverlay);
+      document.getElementById("closeSong").onclick = () => closeOverlay(songOverlay);
+
+      [letterOverlay, collageOverlay, songOverlay].forEach(ov => {
+        ov.onclick = (e) => { if (e.target === ov) closeOverlay(ov); };
+      });
+
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+          closeOverlay(letterOverlay);
+          closeOverlay(collageOverlay);
+          closeOverlay(songOverlay);
+        }
+      });
+
+      finalBtn.onclick = () => {
+        transitionTo(getPage3HTML(), () => startConfetti(2400));
+      };
+    }
+
+    function getPage3HTML() {
+  return `
+    <div class="page3">
+      <div class="page3-inner">
+        <h1>Happy 22nd Birthday! My Love 🥰🥰🥰🎂🎉💞❤️</h1>
+
+        <div class="page3-card">
+          <img src="catflowers.jpg" alt="">
+          <div class="content">
+            <p class="page3-subtext">(Once you are here I will give you the real present okay <3333</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+
+    // init first page
+    initFirstPage();
+  </script>
+</body>
+</html>
